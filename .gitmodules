@@ -1,0 +1,3 @@
+[submodule "Osu.py"]
+	path = Osu.py
+	url = https://github.com/Renondedju/Osu.py.git
