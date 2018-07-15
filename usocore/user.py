@@ -20,8 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from sys import path
-path.append('..')
+from osupy import pyosu
 
-from .user    import User
-from .beatmap import Beatmap
+class User(pyosu.User):
+    pass
