@@ -1,6 +1,6 @@
 # Uso-core
 
-Uso core is the main framework of Uso!bot. 
+Uso core is the main framework of Uso!bot.
 
 ## Requirements
 
@@ -8,6 +8,10 @@ Uso core is the main framework of Uso!bot.
 - A postgreSQL server and database.
 - The *asyncpg* library : [Install instructions](https://github.com/MagicStack/asyncpg#installation)
 - Every [Osu.py](https://github.com/Renondedju/Osu.py) requirements
+
+## Docs
+
+Link to the [docs](docs/index.md)
 
 ## Thanks
 
