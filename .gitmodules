@@ -1,0 +1,3 @@
+[submodule "osupy"]
+	path = osupy
+	url = https://github.com/Renondedju/Osu.py.git
