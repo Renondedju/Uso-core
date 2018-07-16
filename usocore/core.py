@@ -22,9 +22,9 @@
 
 import asyncio
 import asyncpg
+import pyosu
 
 from .decorators import requires_connection
-from osupy       import pyosu
 
 class Core():
 

@@ -20,7 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from osupy import pyosu
+import pyosu
 
-class User(pyosu.User):
-    pass
+class User():
+    
+    def __init__(self, apiuser = pyosu.User):
+        
+        pass
+    
