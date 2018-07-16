@@ -23,4 +23,6 @@
 from osupy import pyosu
 
 class Beatmap(pyosu.Beatmap):
-    pass
+    
+    def __init__(self):
+        pass

@@ -23,5 +23,7 @@
 from sys import path
 path.append('..')
 
-from .user    import User
-from .beatmap import Beatmap
+from .core       import Core
+from .user       import User
+from .beatmap    import Beatmap
+from .exceptions import *
