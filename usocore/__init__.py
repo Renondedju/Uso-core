@@ -20,6 +20,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+"""
+Uso core
+~~~~~~~~~~~~~~~~~~~
+The main logic of Uso!bot
+
+:copyright: (c) 2018 Renondedju
+:license: MIT, see LICENSE for more details.
+"""
+
+__title__     = 'Uso core'
+__author__    = 'Renondedju'
+__license__   = 'MIT'
+__copyright__ = 'Copyright 2018 Renondedju'
+__version__   = '0.1.0-dev'
+
 from .core       import Core
 from .user       import User
 from .beatmap    import Beatmap
