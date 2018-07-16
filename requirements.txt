@@ -1,0 +1,1 @@
+-e git+https://github.com/Renondedju/Osu.py@master#egg=osupy
