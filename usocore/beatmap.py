@@ -22,7 +22,42 @@
 
 from osupy import pyosu
 
-class Beatmap(pyosu.Beatmap):
+class Beatmap():
     
-    def __init__(self):
-        pass
+    def __init__(self, apibeatmap : pyosu.Beatmap):
+        
+        self.is_empty         = apibeatmap.is_empty
+        self.approved         = apibeatmap.approved
+        self.approved_date    = apibeatmap.approved_date
+        self.last_update      = apibeatmap.last_update
+        self.artist           = apibeatmap.artist
+        self.beatmap_id       = apibeatmap.beatmap_id
+        self.beatmapset_id    = apibeatmap.beatmapset_id
+        self.bpm              = apibeatmap.bpm
+        self.creator          = apibeatmap.creator
+        self.difficultyrating = apibeatmap.difficultyrating
+        self.diff_size        = apibeatmap.diff_size
+        self.diff_overall     = apibeatmap.diff_overall
+        self.diff_approach    = apibeatmap.diff_approach
+        self.diff_drain       = apibeatmap.diff_drain
+        self.hit_length       = apibeatmap.hit_length
+        self.source           = apibeatmap.source
+        self.genre_id         = apibeatmap.genre_id
+        self.language_id      = apibeatmap.language_id
+        self.title            = apibeatmap.title
+        self.total_length     = apibeatmap.total_length
+        self.version          = apibeatmap.version
+        self.file_md5         = apibeatmap.file_md5
+        self.mode             = apibeatmap.mode
+        self.tags             = apibeatmap.tags
+        self.favourite_count  = apibeatmap.favourite_count
+        self.playcount        = apibeatmap.playcount
+        self.passcount        = apibeatmap.passcount
+        self.max_combo        = apibeatmap.max_combo
+
+        self.aim_stars        = 0
+        self.speed_stars      = 0
+        self.playstyle        = 0.5 # 0 = aim (jumps) , 1 = speed (stream)
+
+                     #  acc    mods pp. Every field in the dict is an int value
+        self.pp = {} # {100 : {HD : 50, HDDT : 64}, 99 ...}
