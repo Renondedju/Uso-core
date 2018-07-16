@@ -52,11 +52,6 @@ class Core():
 
         return
 
-    @requires_connection
-    async def test(self):
-        
-        await self.connection.execute('CREATE TABLE mytab (a int)')
-
     @requires_connection('Cannot close an unopened connection.')
     async def close(self):
 
