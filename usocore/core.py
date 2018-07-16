@@ -23,7 +23,7 @@
 import asyncio
 import asyncpg
 
-from .decorators import *
+from .decorators import requires_connection
 from osupy       import pyosu
 
 class Core():

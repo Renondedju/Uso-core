@@ -24,6 +24,6 @@ class CoreDisconnectedError(Exception):
 
     def __init__(self, message : str = 'You need to connect the core before doing any database operation'):
 
-        super().__init__(message=message)
+        super().__init__(message)
 
         self.message = message
