@@ -22,15 +22,44 @@
 
 import pyosu
 
-class Beatmap():
-    
-    def __init__(self, apibeatmap : pyosu.models.Beatmap):
-        
-        self.apibeatmap   = apibeatmap
-        
-        self.aim_stars    = 0
-        self.speed_stars  = 0
-        self.playstyle    = 0.5 # 0 = aim (jumps) , 1 = speed (stream)
+from gino import Gino
 
-                     #  acc    mods pp. Every field in the dict is an int value
-        self.pp = {} # {100 : {HD : 50, HDDT : 64}, 99 ...}
+db = Gino()
+
+class Beatmap(db.Model):
+    __tablename__ = 'beatmap'
+    
+    approved         = db.Column(db.Integer())
+    approved_date    = db.Column(db.Date())
+    last_update      = db.Column(db.Date())
+    artist           = db.Column(db.String())
+    beatmap_id       = db.Column(db.Integer())
+    beatmapset_id    = db.Column(db.Integer())
+    bpm              = db.Column(db.Float())
+    creator          = db.Column(db.String())
+    difficultyrating = db.Column(db.Float())
+    diff_size        = db.Column(db.Float())
+    diff_overall     = db.Column(db.Float())
+    diff_approach    = db.Column(db.Float())
+    diff_drain       = db.Column(db.Float())
+    hit_length       = db.Column(db.Float())
+    source           = db.Column(db.String())
+    genre_id         = db.Column(db.Integer())
+    language_id      = db.Column(db.Integer())
+    title            = db.Column(db.String())
+    total_length     = db.Column(db.Float())
+    version          = db.Column(db.String())
+    file_md5         = db.Column(db.String())
+    mode             = db.Column(db.Integer())
+    tags             = db.Column(db.String())
+    favourite_count  = db.Column(db.Integer())
+    playcount        = db.Column(db.Integer())
+    passcount        = db.Column(db.Integer())
+    max_combo        = db.Column(db.Integer())
+    aim_stars        = db.Column(db.Float())
+    speed_stars      = db.Column(db.Float())
+    playstyle        = db.Column(db.Float())
+
+    #No idea of how to implement this ...
+                 #  acc    mods pp. Every field in the dict is an int value
+    #self.pp = {} # {100 : {HD : 50, HDDT : 64}, 99 ...}
