@@ -26,7 +26,7 @@ import pyosu
 
 from .decorators import requires_connection
 
-class Core():
+class Uso():
 
     def __init__(self):
          

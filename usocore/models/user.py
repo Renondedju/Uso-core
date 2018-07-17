@@ -23,13 +23,12 @@
 import pyosu
 
 from datetime import datetime
-from gino     import Gino
 
-db = Gino()
+from osucore.db import db
 
 class User(db.Model):
     __tablename__ = 'users'
-        
+
     user_id            = db.Column(db.Integer())
     username           = db.Column(db.String())
     count300           = db.Column(db.Integer())
@@ -73,5 +72,3 @@ class User(db.Model):
     # mods :  beatmaps id recommended in this mods
     #  {HD : [123456, 456789, 132456, ...], HDDT : [...], ...}
     #self.recommended = {}
-
-    

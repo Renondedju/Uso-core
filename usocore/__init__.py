@@ -35,7 +35,6 @@ __license__   = 'MIT'
 __copyright__ = 'Copyright 2018 Renondedju'
 __version__   = '0.1.0-dev'
 
-from .core       import Core
-from .user       import User
-from .beatmap    import Beatmap
-from .exceptions import *
+from .uso import Uso
+from . import models
+from . import exceptions

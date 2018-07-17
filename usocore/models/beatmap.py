@@ -22,13 +22,11 @@
 
 import pyosu
 
-from gino import Gino
-
-db = Gino()
+from usocore.db import db
 
 class Beatmap(db.Model):
     __tablename__ = 'beatmap'
-    
+
     approved         = db.Column(db.Integer())
     approved_date    = db.Column(db.Date())
     last_update      = db.Column(db.Date())
