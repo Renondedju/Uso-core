@@ -20,7 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 import json
 import asyncio
 import aiohttp
@@ -31,7 +30,6 @@ from usocore import *
 
 pass_count = 0
 test_count = 0
-core = Core()
 
 async def test(function):
     """ Tests a function and sends a report if it fails """
@@ -59,9 +57,12 @@ async def test(function):
 async def main():
 
     settings = json.load(open('test-config.json'))
+    core     = UsoCore()
+
     await core.connect(settings.get('api_key'), settings.get('dsn'))
 
-    
+    beatmap = await Beatmap.create()
+    print(beatmap)
 
     await core.close()
     print('\n' + '-'*100)
@@ -71,5 +72,4 @@ async def main():
 
 if __name__ == '__main__':
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    asyncio.get_event_loop().run_until_complete(main())

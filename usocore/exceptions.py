@@ -22,7 +22,7 @@
 
 class CoreDisconnectedError(Exception):
 
-    def __init__(self, message : str = 'You need to connect the core before doing any database operation'):
+    def __init__(self, message : str = 'You need to connect the core before doing any database or API operation'):
 
         super().__init__(message)
 

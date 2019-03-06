@@ -35,6 +35,7 @@ __license__   = 'MIT'
 __copyright__ = 'Copyright 2018 Renondedju'
 __version__   = '0.1.0-dev'
 
-from .uso import Uso
-from . import models
-from . import exceptions
+from .uso        import UsoCore
+from .models     import *
+from .decorators import *
+from .exceptions import *

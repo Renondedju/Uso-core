@@ -24,35 +24,46 @@ import asyncio
 import asyncpg
 import pyosu
 
+from .db         import db
+from .models     import Beatmap, User
 from .decorators import requires_connection
 
-class Uso():
+class UsoCore():
 
     def __init__(self):
-         
-        self.connection = None
-        self.api        = None
+        self.gino_api  = None
+        self.osu_api   = None
 
     @property
     def is_connected(self):
-        return self.connection is not None and self.api is not None
+        """ Checks if the uso core is connected
+        """
+        return self.gino_api is not None and self.osu_api is not None
 
     async def connect(self, api_key : str, dsn : str):
-        """ Connects the core to the database and setups an api connection 
+        """ Connects the core to the database and setups an API connection 
         
             api_key : osu api key. You may request an API key from [here](https://osu.ppy.sh/p/api).  
-            dsn     : ``postgres://user:pass@host:port/database?option=value``
+            dsn     : ``postgresql://user:pass@host:port/database?option=value``
         """
 
         if self.is_connected:
             return
 
-        self.connection = await asyncpg.connect(dsn = dsn)
-        self.api        = pyosu.api.OsuApi(api_key)
+        # Connecting to the database
+        self.gino_api = await db.set_bind(dsn)
+        await db.gino.create_all()
+
+        # Creating an osu api interface
+        self.osu_api = pyosu.api.OsuApi(api_key)
 
         return
 
     @requires_connection('Cannot close an unopened connection.')
     async def close(self):
+        """ Closes the connections withe the database and the osu API interface
+        """
 
-        await self.connection.close()
+        await db.pop_bind().close()
+        self.gino_api = None
+        self.osu_api  = None
