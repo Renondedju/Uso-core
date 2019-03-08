@@ -22,51 +22,18 @@
 
 import json
 import asyncio
-import aiohttp
-import inspect
-import traceback
 
 from usocore import *
-
-pass_count = 0
-test_count = 0
-
-async def test(function):
-    """ Tests a function and sends a report if it fails """
-
-    global pass_count, test_count
-
-    try :
-        if inspect.iscoroutinefunction(function):
-            print(f"starting couroutine test : {function.__name__}", end = '...')
-            await function()
-        else:
-            print(f"starting test : {function.__name__}", end = '...')
-            function()
-
-        print(" Success.")
-        pass_count += 1
-
-    except Exception as e:
-        print(" Failed.")
-        traceback.print_tb(e.__traceback__)
-        print(e)
-
-    test_count += 1
 
 async def main():
 
     settings = json.load(open('test-config.json'))
     core     = UsoCore()
 
-    await core.connect(settings.get('api_key'), settings.get('dsn'))
-
-    beatmap = await Beatmap.create()
-    print(beatmap)
-
-    await core.close()
-    print('\n' + '-'*100)
-    print(f"Tests done : {pass_count}/{test_count}")
+    if await core.connect(settings.get('api_key'), settings.get('dsn')):
+        beatmap = await core.request_beatmap(beatmap_id=1597953)
+        print(beatmap.__values__)
+        await core.close()
 
     return
 
