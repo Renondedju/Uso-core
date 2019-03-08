@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import json
+import time
 import asyncio
 
 from usocore import *
@@ -30,9 +31,17 @@ async def main():
     settings = json.load(open('test-config.json'))
     core     = UsoCore()
 
+    file = open("D:\\Basile\\Downloads\\list.txt", "r")
+    ids = [int(id[:-1]) for id in file.readlines()]
+    file.close()
+
+    print(f"Found {len(ids)} beatmaps ! Starting importation ...")
+
     if await core.connect(settings.get('api_key'), settings.get('dsn')):
-        beatmap = await core.request_beatmap(beatmap_id=1597953)
-        print(beatmap.__values__)
+        for bmap_id in ids:
+            print(f"Importing {bmap_id} ...")
+            await core.request_beatmap(beatmap_id=bmap_id)
+
         await core.close()
 
     return

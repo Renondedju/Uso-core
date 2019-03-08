@@ -117,27 +117,93 @@ class UsoCore():
         self.osu_api  = None
 
     @requires_connection('Cannot request a beatmap without connection.')
-    async def request_beatmap(self, beatmap_id: int = None, force_update: bool = False) -> Beatmap:
+    async def request_beatmap(self, beatmap_id: int, force_update: bool = False, try_import: bool = True) -> Beatmap:
+        """ Requests a beatmap from the UsoCore database, if the beatmap does not exists
+            this method will try to automatically import it from the osu API.
+            
+            If the operation fails, this method return None.
+        """
 
         beatmap = await Beatmap.query.where(
             Beatmap.beatmap_id == beatmap_id
         ).gino.first()
 
-        # If the beatmap wasn't in the database, importing it...
-        if beatmap is None:
+        # If the beatmap isn't in the database and if we should try to import it, importing it...
+        if beatmap is None and try_import:
+            return await self.import_beatmap(beatmap_id)
 
-            beatmap = await self.fetch_beatmap(beatmap_id)
-            # If the beatmap doesn't exists
-            if beatmap is None:
-                return None
-
-            #Otherwise, adding it to the database 
-            beatmap = await Beatmap.create(**beatmap.__values__)
+        # If we should try to update the beatmap
+        if force_update:
+            beatmap = await self.update_beatmap(beatmap_id)
 
         return beatmap
 
+    @requires_connection('Cannot import a beatmap without connection.')
+    async def import_beatmap(self, beatmap_id: int, check_database: bool = False) -> Beatmap:
+        """ Fetches a beatmap from the osu API and imports it into the database.
+            Be careful since this method won't check if the beatmap already exists in
+            the database before importing it unless 'check_database' is True
+
+            Returns the imported beatmap or None in case of failure.
+        """
+
+        # If we should check the database before importing
+        if check_database:
+            beatmap = await Beatmap.query.where(
+                Beatmap.beatmap_id == beatmap_id
+            ).gino.first()
+
+            # Found a beatmap, stoping the operation here.
+            if beatmap is not None:
+                return beatmap
+
+        # Fetching the beatmap from the osu API
+        beatmap = await self.fetch_beatmap(beatmap_id)
+
+        # If the beatmap doesn't exists
+        if beatmap is None:
+            return None
+
+        # Otherwise, adding it to the database 
+        return await Beatmap.create(**beatmap.__values__)
+
+    @requires_connection('Cannot update a beatmap without connection.')
+    async def update_beatmap(self, beatmap_id: int) -> Beatmap:
+        """ This method checks if the beatmap requires an update.
+            If this is the case, this method will fetch the new version from the osu API
+            and update the UsoCore database.
+
+            This method returns the updated version of the requested beatmap or None
+            if the operation failed in any way.
+        """
+
+        # Fetching the beatmap from the osu API and from our database
+        api_beatmap = await self.osu_api.get_beatmap(beatmap_id=beatmap_id)
+        db_beatmap  = await Beatmap.query.where(
+            Beatmap.beatmap_id == beatmap_id
+        ).gino.first()
+
+        # If the beatmap isn't int the osu API or in our database, the operation failed.
+        if api_beatmap is None or db_beatmap is None:
+            return None
+
+        # Checking if we are already up to date
+        if api_beatmap.last_update == db_beatmap.last_update:
+            return db_beatmap
+
+        # If this is not the case, requesting the new full version
+        updated_beatmap = await self.fetch_beatmap(beatmap_id=beatmap_id, api_beatmap=api_beatmap)
+
+        # If the requested beatmap doesn't exists
+        if updated_beatmap is None:
+            return None
+
+        # Applying changes to the database
+        await  db_beatmap.update(**updated_beatmap.__values__).apply()
+        return db_beatmap
+
     @requires_connection('Cannot request a beatmap without connection.')
-    async def fetch_beatmap(self, beatmap_id: int = None) -> Beatmap:
+    async def fetch_beatmap(self, beatmap_id: int = None, api_beatmap: pyosu.models.Beatmap = None) -> Beatmap:
         """ Fetches a beatmap from the Osu! API and computes every statistics.
             This method is slow, use it carefully to avoid performance issues
 
@@ -146,7 +212,8 @@ class UsoCore():
         """
 
         # Fetching the beatmap from the osu API
-        api_beatmap = await self.osu_api.get_beatmap(beatmap_id=beatmap_id)
+        if api_beatmap is None:
+            api_beatmap = await self.osu_api.get_beatmap(beatmap_id=beatmap_id)
 
         # Downloading the beatmap from the osu API
         data = await self.osu_api.get_beatmap_file(beatmap_id)
@@ -161,6 +228,10 @@ class UsoCore():
         oppai.ezpp_data_dup    (oppai_beatmap, data.content, len(data.content.encode('utf-8')))
         oppai.ezpp_set_autocalc(oppai_beatmap, True)
         
+        # looks like max combo can be none for some reason ...
+        if api_beatmap.max_combo is None:
+            api_beatmap.max_combo = oppai.ezpp_max_combo(oppai_beatmap)
+
         beatmap.approved         = int(api_beatmap.approved)
         beatmap.beatmap_id       = int(api_beatmap.beatmap_id)
         beatmap.beatmapset_id    = int(api_beatmap.beatmapset_id)
