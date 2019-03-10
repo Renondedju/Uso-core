@@ -20,15 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import datetime
+import pyosu
+import oppai
 import asyncio
 import asyncpg
-import oppai
-import pyosu
+import datetime
 
-from .db         import db
-from .models     import Beatmap, User
-from .decorators import requires_connection
+from typing             import List
+from usocore.cache      import Cache
+from usocore.db         import db
+from usocore.models     import Beatmap, User
+from usocore.decorators import requires_connection
 
 class UsoCore():
 
@@ -60,9 +62,13 @@ class UsoCore():
         oppai.MODS_HR | oppai.MODS_DT | oppai.MODS_FL | oppai.MODS_HD
     ]
 
-    def __init__(self):
+    def __init__(self, use_cache: bool = True, cache_location: str = "./.uso_cache/"):
         self.gino_api   = None
         self.osu_api    = None
+        self.cache      = None
+
+        if use_cache:
+            self.cache = Cache(cache_location)
 
     @property
     def is_connected(self):
@@ -115,6 +121,122 @@ class UsoCore():
         await db.pop_bind().close()
         self.gino_api = None
         self.osu_api  = None
+
+    @requires_connection('Cannot request a user without connection.')
+    async def request_user(self, user_id: int, force_update: bool = False, try_import: bool = True) -> User:
+        """ Requests a user from the UsoCore database, if the user does not exists
+            this method will try to automatically import it from the osu API.
+            
+            If the operation fails, this method return None.
+        """
+
+        user = await User.query.where(
+            User.user_id == user_id
+        ).gino.first()
+
+        # If the user isn't in the database and if we should try to import it, importing it...
+        if user is None and try_import:
+            
+            print("User not found !")
+
+            return await self.import_user(user_id)
+
+        # If we should try to update the user
+        if force_update:
+            user = await self.update_user(user_id)
+
+        return user
+
+    @requires_connection('Cannot import a user without connection.')
+    async def import_user(self, user_id: int, check_database: bool = False) -> User:
+        """ Fetches a user from the osu API and imports it into the database.
+            Be careful since this method won't check if the user already exists in
+            the database before importing it unless 'check_database' is True
+
+            Returns the imported user or None in case of failure.
+        """
+
+        print("Importing user ...")
+
+        # If we should check the database before importing
+        if check_database:
+            user = await User.query.where(
+                User.user_id == user_id
+            ).gino.first()
+
+            # Found a user, stoping the operation here.
+            if user is not None:
+                return user
+
+        # Fetching the user from the osu API
+        user = await self.fetch_user(user_id)
+
+        # If the beatmap doesn't exists
+        if user is None:
+            return None
+
+        # Otherwise, adding it to the database 
+        return await User.create(**user.__values__)
+
+    @requires_connection('Cannot fetch a user without connection.')
+    async def fetch_user(self, user_id: int = None, api_user: pyosu.models.User = None, sample_size: int = 30) -> Beatmap:
+        """ Fetches a user from the Osu! API and computes every statistics.
+            This method is slow, use it carefully to avoid performance issues
+        """
+
+        # Fetching the beatmap from the osu API
+        if api_user is None:
+            api_user = await self.osu_api.get_user(user_id, type_str='id', mode=pyosu.types.GameMode.Osu)
+
+            # If there is no such user in the osu API
+            if api_user is None:
+                return None
+
+        # Calmping the sample size between 1 and 100
+        sample_size = min(max(1, sample_size), 100)
+
+        # Downloading the beatmap from the osu API
+        bests     = await self.osu_api.get_user_bests(user_id, type_str='id', mode=pyosu.types.GameMode.Osu, limit=sample_size)
+
+        # Fetching every user best from the database or the osu API (so we have stats to work with)
+        bests_map = [await self.request_beatmap(beatmap_id=int(best.beatmap_id)) for best in bests]
+        
+        # Setting up the user's data
+        user = User()
+
+        user.user_id          = int(api_user.user_id)
+        user.count300         = int(api_user.count300)
+        user.count100         = int(api_user.count100)
+        user.count50          = int(api_user.count50)
+        user.playcount        = int(api_user.playcount)
+        user.pp_rank          = int(api_user.pp_rank)
+        user.count_rank_ss    = int(api_user.count_rank_ss)
+        user.count_rank_ssh   = int(api_user.count_rank_ssh)
+        user.count_rank_a     = int(api_user.count_rank_a)
+        user.count_rank_s     = int(api_user.count_rank_s)
+        user.count_rank_sh    = int(api_user.count_rank_sh)
+        user.pp_country_rank  = int(api_user.pp_country_rank)
+        user.ranked_score     = float(api_user.ranked_score)
+        user.total_score      = float(api_user.total_score)
+        user.level            = float(api_user.level)
+        user.pp_raw           = float(api_user.pp_raw)
+        user.accuracy         = float(api_user.accuracy)
+        user.country          = api_user.country
+        user.username         = api_user.username
+        user.last_update      = datetime.datetime.now()
+
+        # for best in bests:
+        #     user.pp_average       += best.pp
+        #     user.bpm_low          += best.
+        #     user.bpm_average      += best.
+        #     user.bpm_high         += best.
+        #     user.od_average       += best.
+        #     user.ar_average       += best.
+        #     user.cs_average       += best.
+        #     user.len_average      += best.
+        #     user.playstyle        += best.
+
+        return None
 
     @requires_connection('Cannot request a beatmap without connection.')
     async def request_beatmap(self, beatmap_id: int, force_update: bool = False, try_import: bool = True) -> Beatmap:
@@ -192,7 +314,7 @@ class UsoCore():
             return db_beatmap
 
         # If this is not the case, requesting the new full version
-        updated_beatmap = await self.fetch_beatmap(beatmap_id=beatmap_id, api_beatmap=api_beatmap)
+        updated_beatmap = await self.fetch_beatmap(beatmap_id=beatmap_id, api_beatmap=api_beatmap, use_cache=False)
 
         # If the requested beatmap doesn't exists
         if updated_beatmap is None:
@@ -203,31 +325,66 @@ class UsoCore():
         return db_beatmap
 
     @requires_connection('Cannot request a beatmap without connection.')
-    async def fetch_beatmap(self, beatmap_id: int = None, api_beatmap: pyosu.models.Beatmap = None) -> Beatmap:
+    async def get_beatmaps_ids(self) -> List[int]:
+        """ Returns a list containing all the already present beatmap ids in the database.
+            This is useful when importing huge amount of beatmaps into the database, 
+            it allows to remove the already present beatmaps from your list before
+            actually importing it and so optimize the process.
+        """
+        return await db.select([Beatmap]).gino.load((Beatmap.beatmap_id)).all()
+
+    @requires_connection('Cannot fetch a beatmap without connection.')
+    async def fetch_beatmap(self, beatmap_id: int = None, api_beatmap: pyosu.models.Beatmap = None, use_cache: bool = True) -> Beatmap:
         """ Fetches a beatmap from the Osu! API and computes every statistics.
             This method is slow, use it carefully to avoid performance issues
-
-            To know how to use every parameter, please refer to the osu.py
-            documentation for the 'get_beatmap' method.
         """
 
         # Fetching the beatmap from the osu API
         if api_beatmap is None:
-            api_beatmap = await self.osu_api.get_beatmap(beatmap_id=beatmap_id)
 
-        # Downloading the beatmap from the osu API
-        data = await self.osu_api.get_beatmap_file(beatmap_id)
+            try:
+                api_beatmap = await self.osu_api.get_beatmap(beatmap_id=beatmap_id)
+            except UnicodeDecodeError:
+                return None
 
-        if api_beatmap is None or data is None:
+        if api_beatmap is None:
             return None
+
+        # Reading from the cache if possible
+        data            = None
+        downloaded_data = False
+        if use_cache and self.cache is not None:
+            data = self.cache.read(f"{beatmap_id}.osu")
+
+        # If cache reading failed then downloading the beatmap
+        if data is None:
+            try:
+                data            = await self.osu_api.get_beatmap_file(beatmap_id)
+                downloaded_data = True
+            except UnicodeDecodeError:
+                return None
+
+        if data is None:
+            return None
+        if isinstance(data, pyosu.models.BeatmapFile):
+            data = data.content
+
+        # If a cache is avaliable, and that we just downloaded some data,
+        # storing the new file into the cache
+        if downloaded_data and self.cache is not None:
+            self.cache.write(f"{beatmap_id}.osu", data)
 
         # Creating an ezpp object
         oppai_beatmap = oppai.ezpp_new()
         beatmap       = Beatmap()
 
-        oppai.ezpp_data_dup    (oppai_beatmap, data.content, len(data.content.encode('utf-8')))
+        oppai.ezpp_data_dup    (oppai_beatmap, data, len(data.encode('utf-8')))
         oppai.ezpp_set_autocalc(oppai_beatmap, True)
         
+        # Since Graveyard beatmaps does not influences the player stats, ignoring them
+        if int(api_beatmap.approved) == pyosu.types.BeatmapApprovedState.Graveyard:
+            return None
+
         # looks like max combo can be none for some reason ...
         if api_beatmap.max_combo is None:
             api_beatmap.max_combo = oppai.ezpp_max_combo(oppai_beatmap)
@@ -260,13 +417,19 @@ class UsoCore():
         beatmap.total_length     = float(api_beatmap.total_length)
         beatmap.aim_stars        = oppai.ezpp_aim_stars  (oppai_beatmap)
         beatmap.speed_stars      = oppai.ezpp_speed_stars(oppai_beatmap)
-        beatmap.playstyle        = beatmap.aim_stars / float(api_beatmap.difficultyrating)
         beatmap.last_update      = datetime.datetime.strptime(api_beatmap.last_update  , "%Y-%m-%d %H:%M:%S")
         beatmap.approved_date    = datetime.datetime.strptime(api_beatmap.approved_date, "%Y-%m-%d %H:%M:%S")
 
+        if float(api_beatmap.difficultyrating) == 0:
+            beatmap.playstyle = 0.5
+        else:
+            beatmap.aim_stars = beatmap.aim_stars / float(api_beatmap.difficultyrating)
+
         for mods in UsoCore.supported_mods_combinations:
             oppai.ezpp_set_mods(oppai_beatmap, mods)
-            setattr(beatmap, "pp_" + UsoCore.get_mod_name(mods), oppai.ezpp_pp(oppai_beatmap))
+            # Adding so much mods at the same time might overflow an int32.
+            # Since the database cannot handle 64bits int, we need to clamp it down to a 32bit int
+            setattr(beatmap, "pp_" + UsoCore.get_mod_name(mods), min(oppai.ezpp_pp(oppai_beatmap), 2147483647))
 
         oppai_beatmap = oppai.ezpp_free(oppai_beatmap)
         

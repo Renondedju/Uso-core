@@ -36,6 +36,7 @@ __copyright__ = 'Copyright 2018 Renondedju'
 __version__   = '0.1.0-dev'
 
 from .uso        import UsoCore
+from .cache      import *
 from .models     import *
 from .decorators import *
 from .exceptions import *

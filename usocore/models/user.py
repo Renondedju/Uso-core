@@ -28,6 +28,7 @@ from usocore.db import db
 class User(db.Model):
     __tablename__ = 'users'
 
+    uso_id             = db.Column(db.Integer, primary_key = True)
     user_id            = db.Column(db.Integer, unique = True)
     count300           = db.Column(db.Integer)
     count100           = db.Column(db.Integer)
@@ -40,12 +41,11 @@ class User(db.Model):
     count_rank_s       = db.Column(db.Integer)
     count_rank_sh      = db.Column(db.Integer)
     pp_country_rank    = db.Column(db.Integer)
-    accuracy_average   = db.Column(db.Integer)
     username           = db.Column(db.String)
     country            = db.Column(db.String)
-    last_patch_used    = db.Column(db.String)
-    playrate           = db.Column(db.String)
-    recommended        = db.Column(db.String)
+
+    #TODO add playstyle (for mods)
+
     ranked_score       = db.Column(db.Float)
     total_score        = db.Column(db.Float)
     level              = db.Column(db.Float)

@@ -31,20 +31,31 @@ async def main():
     settings = json.load(open('test-config.json'))
     core     = UsoCore()
 
+    if await core.connect(settings.get('api_key'), settings.get('dsn')):
+        await import_beatmaps(core)
+        await core.close()
+
+    return
+
+async def import_user(core: UsoCore):
+    await core.request_user(7418575)
+
+async def import_beatmaps(core: UsoCore):
+
     file = open("D:\\Basile\\Downloads\\list.txt", "r")
     ids = [int(id[:-1]) for id in file.readlines()]
     file.close()
 
-    print(f"Found {len(ids)} beatmaps ! Starting importation ...")
+    print(f"Found {len(ids)} beatmaps !")
 
-    if await core.connect(settings.get('api_key'), settings.get('dsn')):
-        for bmap_id in ids:
-            print(f"Importing {bmap_id} ...")
-            await core.request_beatmap(beatmap_id=bmap_id)
+    imported_ids = await core.get_beatmaps_ids()
+    ids = set(ids) - set(imported_ids)
 
-        await core.close()
+    print(f"Starting importation of {len(ids)} beatmaps ...")
 
-    return
+    for index, bmap_id in enumerate(ids):
+        print(f"[{index}/{len(ids)}] Importing {bmap_id}")
+        await core.request_beatmap(beatmap_id=bmap_id)
 
 if __name__ == '__main__':
 
