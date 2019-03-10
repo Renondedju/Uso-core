@@ -32,13 +32,14 @@ async def main():
     core     = UsoCore()
 
     if await core.connect(settings.get('api_key'), settings.get('dsn')):
-        await import_beatmaps(core)
+        user = await import_user(core)
+        print(user.__dict__)
         await core.close()
 
     return
 
 async def import_user(core: UsoCore):
-    await core.request_user(7418575)
+    return await core.request_user(7418575)
 
 async def import_beatmaps(core: UsoCore):
 

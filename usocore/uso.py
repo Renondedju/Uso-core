@@ -196,12 +196,17 @@ class UsoCore():
         sample_size = min(max(1, sample_size), 100)
 
         # Downloading the beatmap from the osu API
-        bests     = await self.osu_api.get_user_bests(user_id, type_str='id', mode=pyosu.types.GameMode.Osu, limit=sample_size)
+        bests = await self.osu_api.get_user_bests(user_id, type_str='id', mode=pyosu.types.GameMode.Osu, limit=sample_size)
 
         # Fetching every user best from the database or the osu API (so we have stats to work with)
         bests_map = [await self.request_beatmap(beatmap_id=int(best.beatmap_id)) for best in bests]
-        
-        # Setting up the user's data
+
+        return await self.compute_user(api_user, bests, bests_map)
+
+    async def compute_user(self, api_user: pyosu.models.User, user_bests_collection: pyosu.models.UserBestCollection, user_bests_beatmaps: List[Beatmap]) -> User:
+        """ Computes user statistics
+        """
+
         user = User()
 
         user.user_id          = int(api_user.user_id)
@@ -225,18 +230,31 @@ class UsoCore():
         user.username         = api_user.username
         user.last_update      = datetime.datetime.now()
 
-        # for best in bests:
-        #     user.pp_average       += best.pp
-        #     user.bpm_low          += best.
-        #     user.bpm_average      += best.
-        #     user.bpm_high         += best.
-        #     user.od_average       += best.
-        #     user.ar_average       += best.
-        #     user.cs_average       += best.
-        #     user.len_average      += best.
-        #     user.playstyle        += best.
+        user.bpm_high    = user_bests_beatmaps[0].bpm
+        user.bpm_low     = user_bests_beatmaps[0].bpm
+        user.pp_average  = 0.0
+        user.bpm_average = 0.0
+        user.od_average  = 0.0
+        user.ar_average  = 0.0
+        user.cs_average  = 0.0
+        user.len_average = 0.0
 
-        return None
+        sample_size = len(user_bests_beatmaps)
+
+        for index in range(sample_size):
+            user.pp_average  += float(user_bests_collection[index].pp)           / sample_size
+            user.bpm_average +=       user_bests_beatmaps  [index].bpm           / sample_size
+            user.od_average  +=       user_bests_beatmaps  [index].diff_overall  / sample_size
+            user.ar_average  +=       user_bests_beatmaps  [index].diff_approach / sample_size
+            user.cs_average  +=       user_bests_beatmaps  [index].diff_size     / sample_size
+            user.len_average +=       user_bests_beatmaps  [index].hit_length    / sample_size
+
+            #user.playstyle        += user_bests_collection[index].
+
+            user.bpm_high = max(user_bests_beatmaps[index].bpm, user.bpm_high)
+            user.bpm_low  = min(user_bests_beatmaps[index].bpm, user.bpm_low )
+
+        return user
 
     @requires_connection('Cannot request a beatmap without connection.')
     async def request_beatmap(self, beatmap_id: int, force_update: bool = False, try_import: bool = True) -> Beatmap:
@@ -341,7 +359,6 @@ class UsoCore():
 
         # Fetching the beatmap from the osu API
         if api_beatmap is None:
-
             try:
                 api_beatmap = await self.osu_api.get_beatmap(beatmap_id=beatmap_id)
             except UnicodeDecodeError:
@@ -374,11 +391,17 @@ class UsoCore():
         if downloaded_data and self.cache is not None:
             self.cache.write(f"{beatmap_id}.osu", data)
 
+        return await self.compute_beatmap(api_beatmap, data)
+
+    async def compute_beatmap(self, api_beatmap: pyosu.models.Beatmap, beatmap_file_content: str) -> Beatmap:
+        """ Computes a beatmap statistics and pp values
+        """
+
         # Creating an ezpp object
         oppai_beatmap = oppai.ezpp_new()
         beatmap       = Beatmap()
 
-        oppai.ezpp_data_dup    (oppai_beatmap, data, len(data.encode('utf-8')))
+        oppai.ezpp_data_dup    (oppai_beatmap, beatmap_file_content, len(beatmap_file_content))
         oppai.ezpp_set_autocalc(oppai_beatmap, True)
         
         # Since Graveyard beatmaps does not influences the player stats, ignoring them
