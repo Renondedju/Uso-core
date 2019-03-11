@@ -1,6 +1,6 @@
 # MIT License
 
-# Copyright (c) 2018 Renondedju
+# Copyright (c) 2018-2019 Renondedju
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,14 +25,14 @@ Uso core
 ~~~~~~~~~~~~~~~~~~~
 The main logic of Uso!bot
 
-:copyright: (c) 2018 Renondedju
+:copyright: (c) 2018-2019 Renondedju
 :license: MIT, see LICENSE for more details.
 """
 
 __title__     = 'Uso core'
 __author__    = 'Renondedju'
 __license__   = 'MIT'
-__copyright__ = 'Copyright 2018 Renondedju'
+__copyright__ = 'Copyright 2018-2019 Renondedju'
 __version__   = '0.1.0-dev'
 
 from .uso        import UsoCore
