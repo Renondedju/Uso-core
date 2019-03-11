@@ -136,13 +136,14 @@ class UsoCore():
 
         # If the user isn't in the database and if we should try to import it, importing it...
         if user is None and try_import:
-            
-            print("User not found !")
-
             return await self.import_user(user_id)
 
-        # If we should try to update the user
-        if force_update:
+        elif user is None and not try_import:
+            return None
+
+        # If we should force the update of the user or if 
+        # more than one day passed since the last update
+        if force_update or ((user.last_update + datetime.timedelta(days=1)) <= datetime.datetime.now().date()):
             user = await self.update_user(user_id)
 
         return user
@@ -155,8 +156,6 @@ class UsoCore():
 
             Returns the imported user or None in case of failure.
         """
-
-        print("Importing user ...")
 
         # If we should check the database before importing
         if check_database:
@@ -178,8 +177,31 @@ class UsoCore():
         # Otherwise, adding it to the database 
         return await User.create(**user.__values__)
 
+    @requires_connection('Cannot import a user without connection.')
+    async def update_user(self, user_id: int) -> User:
+
+        database_user = await User.query.where(
+            User.user_id == user_id
+        ).gino.first()
+
+        if database_user is None:
+            return None
+
+        api_user = await self.osu_api.get_user(user_id, type_str='id', mode=pyosu.types.GameMode.Osu)
+
+        if api_user is None:
+            return None
+
+        # If the user won at least 5 pp, updating the user
+        if api_user.pp_raw > database_user.pp_raw + 5:
+            await database_user.update(**(await self.fetch_user(user_id, api_user = api_user)).__values__).apply()
+        else:
+            await database_user.update(last_update = datetime.datetime.now()).apply()
+
+        return database_user
+
     @requires_connection('Cannot fetch a user without connection.')
-    async def fetch_user(self, user_id: int = None, api_user: pyosu.models.User = None, sample_size: int = 30) -> Beatmap:
+    async def fetch_user(self, user_id: int = None, api_user: pyosu.models.User = None, sample_size: int = 30) -> User:
         """ Fetches a user from the Osu! API and computes every statistics.
             This method is slow, use it carefully to avoid performance issues
         """
