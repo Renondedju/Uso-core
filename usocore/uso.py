@@ -1,6 +1,6 @@
 # MIT License
 
-# Copyright (c) 2018 Renondedju
+# Copyright (c) 2018-2019 Renondedju
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ import asyncio
 import asyncpg
 import datetime
 
-from typing             import List
+from typing             import List, Dict
 from usocore.cache      import Cache
 from usocore.db         import db
 from usocore.models     import Beatmap, User
@@ -209,50 +209,62 @@ class UsoCore():
 
         user = User()
 
-        user.user_id          = int(api_user.user_id)
-        user.count300         = int(api_user.count300)
-        user.count100         = int(api_user.count100)
-        user.count50          = int(api_user.count50)
-        user.playcount        = int(api_user.playcount)
-        user.pp_rank          = int(api_user.pp_rank)
-        user.count_rank_ss    = int(api_user.count_rank_ss)
-        user.count_rank_ssh   = int(api_user.count_rank_ssh)
-        user.count_rank_a     = int(api_user.count_rank_a)
-        user.count_rank_s     = int(api_user.count_rank_s)
-        user.count_rank_sh    = int(api_user.count_rank_sh)
-        user.pp_country_rank  = int(api_user.pp_country_rank)
-        user.ranked_score     = float(api_user.ranked_score)
-        user.total_score      = float(api_user.total_score)
-        user.level            = float(api_user.level)
-        user.pp_raw           = float(api_user.pp_raw)
-        user.accuracy         = float(api_user.accuracy)
+        user.user_id          = api_user.user_id
+        user.count300         = api_user.count300
+        user.count100         = api_user.count100
+        user.count50          = api_user.count50
+        user.playcount        = api_user.playcount
+        user.pp_rank          = api_user.pp_rank
+        user.count_rank_ss    = api_user.count_rank_ss
+        user.count_rank_ssh   = api_user.count_rank_ssh
+        user.count_rank_a     = api_user.count_rank_a
+        user.count_rank_s     = api_user.count_rank_s
+        user.count_rank_sh    = api_user.count_rank_sh
+        user.pp_country_rank  = api_user.pp_country_rank
+        user.ranked_score     = api_user.ranked_score
+        user.total_score      = api_user.total_score
+        user.level            = api_user.level
+        user.pp_raw           = api_user.pp_raw
+        user.accuracy         = api_user.accuracy
         user.country          = api_user.country
         user.username         = api_user.username
         user.last_update      = datetime.datetime.now()
 
-        user.bpm_high    = user_bests_beatmaps[0].bpm
-        user.bpm_low     = user_bests_beatmaps[0].bpm
-        user.pp_average  = 0.0
-        user.bpm_average = 0.0
-        user.od_average  = 0.0
-        user.ar_average  = 0.0
-        user.cs_average  = 0.0
-        user.len_average = 0.0
+        user.bpm_low        = user_bests_beatmaps[0].bpm
+        user.bpm_high       = user_bests_beatmaps[0].bpm
+        user.pp_average     = 0.0
+        user.od_average     = 0.0
+        user.ar_average     = 0.0
+        user.cs_average     = 0.0
+        user.bpm_average    = 0.0
+        user.len_average    = 0.0
+        user.preferred_mods = pyosu.types.GameModifier.none
 
         sample_size = len(user_bests_beatmaps)
 
+        mods_played: Dict[int, int] = {}
         for index in range(sample_size):
-            user.pp_average  += float(user_bests_collection[index].pp)           / sample_size
-            user.bpm_average +=       user_bests_beatmaps  [index].bpm           / sample_size
-            user.od_average  +=       user_bests_beatmaps  [index].diff_overall  / sample_size
-            user.ar_average  +=       user_bests_beatmaps  [index].diff_approach / sample_size
-            user.cs_average  +=       user_bests_beatmaps  [index].diff_size     / sample_size
-            user.len_average +=       user_bests_beatmaps  [index].hit_length    / sample_size
+            user.pp_average  += user_bests_collection[index].pp            / sample_size
+            user.od_average  += user_bests_beatmaps  [index].diff_overall  / sample_size
+            user.ar_average  += user_bests_beatmaps  [index].diff_approach / sample_size
+            user.cs_average  += user_bests_beatmaps  [index].diff_size     / sample_size
+            user.bpm_average += user_bests_beatmaps  [index].bpm           / sample_size
+            user.len_average += user_bests_beatmaps  [index].hit_length    / sample_size
 
-            #user.playstyle        += user_bests_collection[index].
-
+            if user_bests_collection[index].enabled_mods in mods_played.keys():
+                mods_played[user_bests_collection[index].enabled_mods] += 1
+            else:
+                mods_played[user_bests_collection[index].enabled_mods] = 1
+            
             user.bpm_high = max(user_bests_beatmaps[index].bpm, user.bpm_high)
             user.bpm_low  = min(user_bests_beatmaps[index].bpm, user.bpm_low )
+
+        # Selecting the user preferred mods
+        max_value = 0
+        for key, value in mods_played.items():
+            if value > max_value:
+                user.preferred_mods = key
+                max_value = value
 
         return user
 
@@ -401,7 +413,7 @@ class UsoCore():
         oppai_beatmap = oppai.ezpp_new()
         beatmap       = Beatmap()
 
-        oppai.ezpp_data_dup    (oppai_beatmap, beatmap_file_content, len(beatmap_file_content))
+        oppai.ezpp_data_dup    (oppai_beatmap, beatmap_file_content, len(beatmap_file_content.encode('utf-8')))
         oppai.ezpp_set_autocalc(oppai_beatmap, True)
         
         # Since Graveyard beatmaps does not influences the player stats, ignoring them
@@ -412,16 +424,16 @@ class UsoCore():
         if api_beatmap.max_combo is None:
             api_beatmap.max_combo = oppai.ezpp_max_combo(oppai_beatmap)
 
-        beatmap.approved         = int(api_beatmap.approved)
-        beatmap.beatmap_id       = int(api_beatmap.beatmap_id)
-        beatmap.beatmapset_id    = int(api_beatmap.beatmapset_id)
-        beatmap.genre_id         = int(api_beatmap.genre_id)
-        beatmap.language_id      = int(api_beatmap.language_id)
-        beatmap.mode             = int(api_beatmap.mode)
-        beatmap.favourite_count  = int(api_beatmap.favourite_count)
-        beatmap.playcount        = int(api_beatmap.playcount)
-        beatmap.passcount        = int(api_beatmap.passcount)
-        beatmap.max_combo        = int(api_beatmap.max_combo)
+        beatmap.approved         = api_beatmap.approved
+        beatmap.beatmap_id       = api_beatmap.beatmap_id
+        beatmap.beatmapset_id    = api_beatmap.beatmapset_id
+        beatmap.genre_id         = api_beatmap.genre_id
+        beatmap.language_id      = api_beatmap.language_id
+        beatmap.mode             = api_beatmap.mode
+        beatmap.favourite_count  = api_beatmap.favourite_count
+        beatmap.playcount        = api_beatmap.playcount
+        beatmap.passcount        = api_beatmap.passcount
+        beatmap.max_combo        = api_beatmap.max_combo
         beatmap.artist           = api_beatmap.artist
         beatmap.creator          = api_beatmap.creator
         beatmap.source           = api_beatmap.source
@@ -430,18 +442,18 @@ class UsoCore():
         beatmap.version          = api_beatmap.version
         beatmap.tags             = api_beatmap.tags
         beatmap.pp               = oppai.ezpp_pp(oppai_beatmap)
-        beatmap.bpm              = float(api_beatmap.bpm)
-        beatmap.difficultyrating = float(api_beatmap.difficultyrating)
-        beatmap.diff_size        = float(api_beatmap.diff_size)
-        beatmap.diff_overall     = float(api_beatmap.diff_overall)
-        beatmap.diff_approach    = float(api_beatmap.diff_approach)
-        beatmap.diff_drain       = float(api_beatmap.diff_drain)
-        beatmap.hit_length       = float(api_beatmap.hit_length)
-        beatmap.total_length     = float(api_beatmap.total_length)
+        beatmap.bpm              = api_beatmap.bpm
+        beatmap.difficultyrating = api_beatmap.difficultyrating
+        beatmap.diff_size        = api_beatmap.diff_size
+        beatmap.diff_overall     = api_beatmap.diff_overall
+        beatmap.diff_approach    = api_beatmap.diff_approach
+        beatmap.diff_drain       = api_beatmap.diff_drain
+        beatmap.hit_length       = api_beatmap.hit_length
+        beatmap.total_length     = api_beatmap.total_length
         beatmap.aim_stars        = oppai.ezpp_aim_stars  (oppai_beatmap)
         beatmap.speed_stars      = oppai.ezpp_speed_stars(oppai_beatmap)
-        beatmap.last_update      = datetime.datetime.strptime(api_beatmap.last_update  , "%Y-%m-%d %H:%M:%S")
-        beatmap.approved_date    = datetime.datetime.strptime(api_beatmap.approved_date, "%Y-%m-%d %H:%M:%S")
+        beatmap.last_update      = api_beatmap.last_update
+        beatmap.approved_date    = api_beatmap.approved_date
 
         if float(api_beatmap.difficultyrating) == 0:
             beatmap.playstyle = 0.5
